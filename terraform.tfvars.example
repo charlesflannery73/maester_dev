@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and adjust values
+
+# Copy to terraform.tfvars and adjust values
+
+subscription_id            = "00000000-0000-0000-0000-000000000000"
+location                   = "eastus"
+prefix                     = "maester-" # Always include a dash if you want one in all names
+environment                = "dev"
+vnet_address_space         = ["10.20.0.0/16"]
+subnet_pe_name             = "snet-pe"
+subnet_pe_prefix           = "10.20.1.0/24"
+private_dns_zone_name      = "privatelink.azure-automation.net"
+# Optional: link to existing Log Analytics workspace resource ID
+# log_analytics_workspace_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<name>"
+
+# Optional: RBAC assignment for the Automation Account's managed identity
+# Contributor role example id (built-in) for cross-tenant-safe usage use role_definition_name via data source
+# maester_rbac_role_definition_id = "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+# maester_rbac_scope              = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/target-rg"
+
