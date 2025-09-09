@@ -1,6 +1,12 @@
 # Deploys the Maester test framework and scheduler
 
 ```bash
+# package the custom checks
+cd modules/maester
+./build.ps1
+cd ../../
+
+# deploy
 terraform init
 terraform plan
 terraform apply 
@@ -26,3 +32,17 @@ terraform apply
 - Maester, Pester, Nuget, Microsoft.Graph.Authentication, PackageManagement
 - Click save
 
+### 3. Edit the schedule and the email sender and recipients
+- Open Azure Portal
+- Search for "Automation Accounts" choose the created one
+- Click shared resources - Schedules - choose the created one
+- edit as required
+
+### 4. Edit the email sender and recipients
+- Open Azure Portal
+- Search for "Automation Accounts" choose the created one
+- Click Process Automation - Runbooks - choose the created one - edit - edit in portal
+- Edit the variable $MailRecipients
+- Edit the variable $MailSenderEmail
+- Save, Publish
+- Optionally - Click "Start" to run it manually
