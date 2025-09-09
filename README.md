@@ -23,6 +23,6 @@ terraform apply
 - Select the custom created one
 - Click add from Gallery
 - Search for the below packages, select them
-- Maester, Pester, Nuget, Microsoft.Graph.Automation, PackageManagement
+- Maester, Pester, Nuget, Microsoft.Graph.Authentication, PackageManagement
 - Click save
 

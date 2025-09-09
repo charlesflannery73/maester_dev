@@ -1,3 +1,21 @@
+
+
+# Get current subscription for role assignment scope
+data "azurerm_subscription" "current" {}
+# Assign Reader role to Automation Account's managed identity
+resource "azurerm_role_assignment" "automation_reader" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Reader"  # needed for some Azure cmdlets
+  principal_id         = azurerm_automation_account.maester.identity[0].principal_id
+  depends_on           = [azurerm_automation_account.maester]
+}
+
+# Output the storage account host for use in automation scripts
+output "custom_storage_host" {
+  value = "${azurerm_storage_account.custom.name}.blob.core.windows.net"
+  description = "The hostname for the custom rules storage account."
+}
+
 locals {
   resource_group_name = "${var.prefix}-rg-maester-${var.environment}"
   automation_account_name = "${var.prefix}-aa-maester-${var.environment}"
@@ -7,10 +25,7 @@ locals {
     provisioner = "terraform"
   }, var.tags)
 }
-# Maester module main.tf
-# Contains all resources for Automation Account, VNet, PE, DNS, RBAC, and Graph permissions
 
-# All resources for Automation Account, VNet, PE, DNS, RBAC, and Graph permissions
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_resource_group" "rg" {
@@ -19,103 +34,21 @@ resource "azurerm_resource_group" "rg" {
   tags     = local.common_tags
 }
 
-resource "azurerm_virtual_network" "vnet" {
-  name                = "${var.prefix}-vnet-${var.environment}"
-  address_space       = var.vnet_address_space
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = local.resource_group_name
-  tags                = local.common_tags
-}
-
-resource "azurerm_subnet" "pe" {
-  name                = var.subnet_pe_name
-  resource_group_name = local.resource_group_name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes    = [var.subnet_pe_prefix]
-}
-
-resource "azurerm_private_dns_zone" "automation" {
-  name                = var.private_dns_zone_name
-  resource_group_name = local.resource_group_name
-  tags                = local.common_tags
-}
-
-resource "azurerm_private_dns_zone_virtual_network_link" "automation_primary" {
-  name                  = "${var.prefix}-pdnslink-${var.environment}"
-  resource_group_name   = local.resource_group_name
-  private_dns_zone_name = azurerm_private_dns_zone.automation.name
-  virtual_network_id    = azurerm_virtual_network.vnet.id
-  registration_enabled  = false
-  tags                  = local.common_tags
-}
-
-resource "azurerm_private_dns_zone_virtual_network_link" "automation_additional" {
-  for_each              = { for id in var.link_vnet_ids : id => id }
-  name                  = "${var.prefix}-pdnslink-${replace(each.key, "/", "-")}-${var.environment}"
-  resource_group_name   = local.resource_group_name
-  private_dns_zone_name = azurerm_private_dns_zone.automation.name
-  virtual_network_id    = each.value
-  registration_enabled  = false
-  tags                  = local.common_tags
-}
 
 resource "azurerm_automation_account" "maester" {
   name                = local.automation_account_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = local.resource_group_name
-  sku_name            = var.automation_sku_name
+  sku_name            = "Basic"
 
   identity {
     type = "SystemAssigned"
   }
 
   public_network_access_enabled = false
-
   tags = local.common_tags
 }
 
-
-# Private Endpoint - Webhook sub-resource
-resource "azurerm_private_endpoint" "pe_webhook" {
-  name                = "${var.prefix}-pe-webhook-${var.environment}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = local.resource_group_name
-  subnet_id           = azurerm_subnet.pe.id
-  tags                = local.common_tags
-
-  private_service_connection {
-    name                           = "${var.prefix}-psc-webhook-${var.environment}"
-    private_connection_resource_id = azurerm_automation_account.maester.id
-    is_manual_connection           = false
-    subresource_names              = ["Webhook"]
-  }
-
-  private_dns_zone_group {
-    name                 = "${var.prefix}-pdz-webhook-${var.environment}"
-    private_dns_zone_ids = [azurerm_private_dns_zone.automation.id]
-  }
-}
-
-# Private Endpoint - DSCAndHybridWorker sub-resource
-resource "azurerm_private_endpoint" "pe_dsc_hw" {
-  name                = "${var.prefix}-pe-dschw-${var.environment}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = local.resource_group_name
-  subnet_id           = azurerm_subnet.pe.id
-  tags                = local.common_tags
-
-  private_service_connection {
-    name                           = "${var.prefix}-psc-dschw-${var.environment}"
-    private_connection_resource_id = azurerm_automation_account.maester.id
-    is_manual_connection           = false
-    subresource_names              = ["DSCAndHybridWorker"]
-  }
-
-  private_dns_zone_group {
-    name                 = "${var.prefix}-pdz-dschw-${var.environment}"
-    private_dns_zone_ids = [azurerm_private_dns_zone.automation.id]
-  }
-}
 
 # Optional RBAC assignment for the system-assigned identity
 resource "azurerm_role_assignment" "maester" {
@@ -166,4 +99,41 @@ resource "azuread_app_role_assignment" "maester_graph" {
   principal_object_id           = data.azuread_service_principal.maester.object_id
   app_role_id                   = each.value
   resource_object_id            = data.azuread_service_principal.msgraph.object_id
+}
+
+# Storage Account for Custom module
+resource "azurerm_storage_account" "custom" {
+  name                     = "${var.prefix}customrules${var.environment}"
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
+resource "azurerm_storage_container" "custom" {
+  name                  = "${var.prefix}-container-${var.environment}"
+  storage_account_name  = azurerm_storage_account.custom.name
+  container_access_type = "blob"
+}
+
+resource "azurerm_storage_blob" "custom_module" {
+  name                   = "Custom.zip"
+  storage_account_name   = azurerm_storage_account.custom.name
+  storage_container_name = azurerm_storage_container.custom.name
+  type                   = "Block"
+  source                 = "${path.module}/Custom.zip"
+}
+
+resource "azurerm_automation_module" "custom" {
+  name                    = "Custom"
+  resource_group_name     = azurerm_resource_group.rg.name
+  automation_account_name = azurerm_automation_account.maester.name
+  module_link {
+    uri = azurerm_storage_blob.custom_module.url
+  }
+  depends_on = [azurerm_automation_account.maester]
 }
