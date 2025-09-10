@@ -1,3 +1,7 @@
+variable "allow_list_ip" {
+	type        = list(string)
+	description = "List of public IPs allowed to access the storage account."
+}
 # Variables for maester module
 variable "subscription_id" {
 	type        = string

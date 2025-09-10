@@ -4,15 +4,11 @@ param(
     [string]$Container = "cdf-container-dev"
 )
 
-
 Connect-MgGraph -Identity
 
-
-#Define mail recipient
 $MailRecipients = "charles@p.malsec.com.au"
 # $MailRecipients = "charles@p.malsec.com.au","james@p.malsec.com.au","ben@p.malsec.com.au"
 
-# Define mail sender
 $MailSenderEmail = "charles@p.malsec.com.au" # "553050a4-b699-4f8f-ad86-84fa3ecbcd19"
 
 # Lookup the mail sender uuid directly
@@ -33,29 +29,38 @@ $TempOutputFolder = $env:TEMP + $date
 if (!(Test-Path $TempOutputFolder -PathType Container)) {
     New-Item -ItemType Directory -Force -Path $TempOutputFolder
 }
-#Run Maester report
+
+# set up temp folders for maester tests
 cd $env:TEMP
 md maester-tests
 cd maester-tests
 md tests
 
-# uncomment to install the maester tests 
-#Install-MaesterTests .\tests
-#Remove-Item .\tests\Maester\Intune\Test-MtIntunePlatform.Tests.ps1
+# #uncomment to install the maester tests 
+# Install-MaesterTests .\tests
+# #This test is buggy and causes an error
+# Remove-Item .\tests\Maester\Intune\Test-MtIntunePlatform.Tests.ps1
 
-# add our custom tests 
-$BlobName = "Custom.zip"
-$BlobUrl = "https://$StorageHost/$Container/$BlobName"
-$DestZip = "$env:TEMP\maester-tests\$BlobName"
-$DestFolder = "$env:TEMP\maester-tests\tests\Custom"
+# Copy our custom tests from shared modules path
 try {
-    Invoke-WebRequest -Uri $BlobUrl -OutFile $DestZip -ErrorAction Stop
-    if (!(Test-Path $DestZip -PathType Leaf)) {
-        throw "$BlobUrl was not downloaded."
+    Import-Module Custom -ErrorAction Stop   # C:\usr\src\PSModules\Custom
+        
+    $ModulePath = (Get-Module Custom).ModuleBase
+    $DestFolder = "$env:TEMP\maester-tests\tests\Custom"
+    
+    # remove previous contents of the folder if it exists
+    if (Test-Path $DestFolder -PathType Container) {
+        Get-ChildItem -Path $DestFolder -Recurse | Remove-Item -Force -Recurse
+    } else {
+        New-Item -ItemType Directory -Force -Path $DestFolder
+    }
+
+    # copy custom measter tests to the test test custom folder
+    Get-ChildItem -Path $ModulePath | ForEach-Object {
+        Copy-Item $_.FullName -Destination $DestFolder -Force
     }
 } catch {
-    Write-Error "Failed to download $BlobUrl"
+    Write-Output "Error details: $($_.Exception.Message)"
     exit 1
 }
-Expand-Archive -Path $DestZip -DestinationPath $DestFolder -Force
 Invoke-Maester -MailUserId $MailSenderUUID -MailRecipient $MailRecipients -OutputFolder $TempOutputFolder -NonInteractive

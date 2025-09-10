@@ -28,8 +28,10 @@ terraform apply
 - Click "Process Automation", then "Runtime Environments" (may need to "Try Runtime Environment Experience" if option is not available )
 - Select the custom created one
 - Click add from Gallery
-- Search for the below packages, select them
-- Maester, Pester, Nuget, Microsoft.Graph.Authentication, PackageManagement
+    - Search for the below packages, select them
+    - Maester, Pester, Nuget, Microsoft.Graph.Authentication, PackageManagement
+- Click Add File
+    - at the Custom.zip file from this repository containing the custom checks
 - Click save
 
 ### 3. Edit the schedule and the email sender and recipients

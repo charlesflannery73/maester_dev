@@ -9,14 +9,8 @@ resource "azurerm_automation_runbook" "maester_runbook" {
   runbook_type            = "PowerShell"
   content                 = file("${path.module}/runbook.ps1")
   
-
   job_schedule {
     schedule_name = azurerm_automation_schedule.maester_runbook_schedule.name
-    parameters = {
-      storagehost    = "${azurerm_storage_account.custom.name}.blob.core.windows.net"
-      container      = azurerm_storage_container.custom.name
-      subscriptionid = var.subscription_id
-    }
   }
 
   depends_on = [azurerm_automation_account.maester, azapi_resource.ps74_runtime]
