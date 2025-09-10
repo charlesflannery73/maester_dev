@@ -1,7 +1,8 @@
 param(
-    [string]$StorageHost = "cdfcustomrulesdev.blob.core.windows.net",
-    [string]$SubscriptionId = "8ff07d8a-7f17-4b87-a9d1-d25bb8e5d4c7",
-    [string]$Container = "cdf-container-dev"
+    [string]$storageaccountname = "",
+    [string]$containername = "",
+    [string]$sastokenwrite = "",
+    [string]$sastokenread =  ""
 )
 
 Connect-MgGraph -Identity
@@ -12,8 +13,7 @@ $MailRecipients = "charles@p.malsec.com.au"
 $MailSenderEmail = "charles@p.malsec.com.au" # "553050a4-b699-4f8f-ad86-84fa3ecbcd19"
 
 # Lookup the mail sender uuid directly
-$AllUsers = Get-MtUser -Count 10000
-$user = $AllUsers | Where-Object { $_.userPrincipalName -eq $MailSenderEmail }
+$user = Get-MtUser -Count 100000 | Where-Object { $_.userPrincipalName -eq $MailSenderEmail }
 $MailSenderUUID = $user.id
 
 if (!$MailSenderUUID) {
@@ -21,22 +21,13 @@ if (!$MailSenderUUID) {
     exit
 }
 
-#create output folder
-$date = (Get-Date).ToString("yyyyMMdd-HHmm")
-$FileName = "MaesterReport" + $Date + ".zip"
-
-$TempOutputFolder = $env:TEMP + $date
-if (!(Test-Path $TempOutputFolder -PathType Container)) {
-    New-Item -ItemType Directory -Force -Path $TempOutputFolder
-}
-
 # set up temp folders for maester tests
 cd $env:TEMP
-md maester-tests
+md maester-tests/tests
 cd maester-tests
-md tests
 
-# #uncomment to install the maester tests 
+
+# #uncomment to install all the maester tests 
 # Install-MaesterTests .\tests
 # #This test is buggy and causes an error
 # Remove-Item .\tests\Maester\Intune\Test-MtIntunePlatform.Tests.ps1
@@ -63,4 +54,14 @@ try {
     Write-Output "Error details: $($_.Exception.Message)"
     exit 1
 }
-Invoke-Maester -MailUserId $MailSenderUUID -MailRecipient $MailRecipients -OutputFolder $TempOutputFolder -NonInteractive
+
+# create Maester detailed result file name with date and time
+$OutputHtmlFile = "MaesterDetailedReport_$((Get-Date).ToString('yyyyMMdd-HHmm')).html"
+
+# create shareable SAS URL for the output file
+$sasUrl = "https://$storageaccountname.blob.core.windows.net/$containername/$OutputHtmlFile$sastokenread"
+Write-Output "Shareable SAS URL: $sasUrl"
+
+Invoke-Maester -MailUserId $MailSenderUUID -MailRecipient $MailRecipients -OutputHtmlFile $OutputHtmlFile -MailTestResultsUri $sasUrl -NonInteractive
+$context = New-AzStorageContext -StorageAccountName $storageaccountname -SasToken $sastokenwrite
+Set-AzStorageBlobContent -File "$OutputHtmlFile" -Container $containername -Blob $OutputHtmlFile -Context $context -Force

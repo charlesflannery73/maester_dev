@@ -1,3 +1,111 @@
+# Generate SAS token for output container
+data "azurerm_storage_account_sas" "output_container_sas" {
+  connection_string = azurerm_storage_account.maester.primary_connection_string
+
+  https_only = true
+  start     = formatdate("YYYY-MM-DD", timestamp())
+  expiry    = "2030-01-01"
+
+  resource_types {
+    service   = false
+    container = true
+    object    = true
+  }
+
+  services {
+    blob  = true
+    queue = false
+    table = false
+    file  = false
+  }
+
+  permissions {
+    read    = true
+    write   = true
+    delete  = true
+    list    = true
+    add     = false
+    create  = true
+    update  = false
+    process = false
+    filter  = false
+    tag     = false
+  }
+}
+
+output "output_container_sas_token" {
+  value       = data.azurerm_storage_account_sas.output_container_sas.sas
+  description = "SAS token for the runbook-output container. Use this in Automation to upload files."
+  sensitive   = true
+}
+
+# Read-only SAS token for sharing a file by link (long expiry)
+data "azurerm_storage_account_sas" "shared_file_sas" {
+  connection_string = azurerm_storage_account.maester.primary_connection_string
+  https_only        = true
+
+  resource_types {
+    service   = false
+    container = false
+    object    = true
+  }
+
+  services {
+    blob  = true
+    queue = false
+    table = false
+    file  = false
+  }
+
+  start  = formatdate("YYYY-MM-DD", timestamp())
+  expiry = "2030-01-01"
+
+  permissions {
+    read    = true
+    write   = false
+    delete  = false
+    list    = false
+    add     = false
+    create  = false
+    update  = false
+    process = false
+    filter  = false
+    tag     = false
+  }
+}
+
+output "shared_file_sas_token" {
+  value       = data.azurerm_storage_account_sas.shared_file_sas.sas
+  description = "Read-only SAS token for sharing a file by link. Long expiry."
+  sensitive   = true
+}
+
+
+
+# Storage Account and Container for runbook output
+resource "azurerm_storage_account" "maester" {
+  name                     = "${var.prefix}maester${var.environment}"
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  tags                     = local.common_tags
+}
+
+resource "azurerm_storage_container" "output" {
+  name                  = "runbook-output"
+  storage_account_name  = azurerm_storage_account.maester.name
+  container_access_type = "private"
+}
+
+# Assign Storage Blob Contributor role to Automation Account managed identity
+resource "azurerm_role_assignment" "automation_blob_contributor" {
+  scope                = azurerm_storage_account.maester.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_automation_account.maester.identity[0].principal_id
+  depends_on           = [azurerm_automation_account.maester, azurerm_storage_account.maester]
+}
+
 # Get current subscription for role assignment scope
 data "azurerm_subscription" "current" {}
 # Assign Reader role to Automation Account's managed identity

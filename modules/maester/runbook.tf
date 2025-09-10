@@ -11,6 +11,12 @@ resource "azurerm_automation_runbook" "maester_runbook" {
   
   job_schedule {
     schedule_name = azurerm_automation_schedule.maester_runbook_schedule.name
+    parameters = {
+      storageaccountname   = azurerm_storage_account.maester.name
+      containername        = azurerm_storage_container.output.name
+      sastokenwrite        = data.azurerm_storage_account_sas.output_container_sas.sas
+      sastokenread         = data.azurerm_storage_account_sas.shared_file_sas.sas
+    }
   }
 
   depends_on = [azurerm_automation_account.maester, azapi_resource.ps74_runtime]
