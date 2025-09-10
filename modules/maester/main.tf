@@ -81,7 +81,6 @@ output "shared_file_sas_token" {
 }
 
 
-
 # Storage Account and Container for runbook output
 resource "azurerm_storage_account" "maester" {
   name                     = "${var.prefix}maester${var.environment}"
@@ -116,35 +115,6 @@ resource "azurerm_role_assignment" "automation_reader" {
   depends_on           = [azurerm_automation_account.maester]
 }
 
-
-# resource "azurerm_virtual_network" "maester" {
-#   name                = "${var.prefix}-vnet-maester-${var.environment}"
-#   address_space       = ["10.10.0.0/16"]
-#   location            = var.location
-#   resource_group_name = azurerm_resource_group.rg.name
-#   tags                = local.common_tags
-# }
-
-# resource "azurerm_subnet" "maester_pe" {
-#   name                 = "${var.prefix}-subnet-pe-${var.environment}"
-#   resource_group_name  = azurerm_resource_group.rg.name
-#   virtual_network_name = azurerm_virtual_network.maester.name
-#   address_prefixes     = ["10.10.1.0/24"]
-#   service_endpoints    = ["Microsoft.Storage"]
-# }
-
-# resource "azurerm_private_dns_zone" "storage" {
-#   name                = "privatelink.blob.core.windows.net"
-#   resource_group_name = azurerm_resource_group.rg.name
-# }
-
-# resource "azurerm_private_dns_zone_virtual_network_link" "storage" {
-#   name                  = "${var.prefix}-dns-vnet-link-${var.environment}"
-#   resource_group_name   = azurerm_resource_group.rg.name
-#   private_dns_zone_name = azurerm_private_dns_zone.storage.name
-#   virtual_network_id    = azurerm_virtual_network.maester.id
-#   registration_enabled  = false
-# }
 
 locals {
   resource_group_name = "${var.prefix}-rg-maester-${var.environment}"
