@@ -57,7 +57,7 @@ Write-Output "Created storage context with managed identity: $($context.Context.
 $OutputHtmlFile = "MaesterDetailedReport_$((Get-Date).ToString('yyyyMMdd-HHmm')).html"
 write-Output "Created filename HTML file: $OutputHtmlFile"
 
-$readSasToken = New-AzStorageBlobSASToken -Container $containername -Blob $OutputHtmlFile -Permission r -Context $context -ExpiryTime (Get-Date).AddYears(5)
+$readSasToken = New-AzStorageBlobSASToken -Container $containername -Blob $OutputHtmlFile -Permission r -Context $context -ExpiryTime (Get-Date).AddDays(30)
 write-Output "Created read SAS token: $readSasToken"
 
 $readSasUrl = "https://" + $storageaccountname + ".blob.core.windows.net/" + $containername + "/" + $OutputHtmlFile + "?" + $readSasToken
