@@ -14,8 +14,7 @@ resource "azurerm_automation_runbook" "maester_runbook" {
     parameters = {
       storageaccountname   = azurerm_storage_account.maester.name
       containername        = azurerm_storage_container.output.name
-      sastokenwrite        = data.azurerm_storage_account_sas.output_container_sas.sas
-      sastokenread         = data.azurerm_storage_account_sas.shared_file_sas.sas
+      storageaccountkey    = azurerm_storage_account.maester.primary_access_key
     }
   }
 

@@ -1,9 +1,8 @@
 param(
     [string]$storageaccountname = "",
     [string]$containername = "",
-    [string]$sastokenwrite = "",
-    [string]$sastokenread =  ""
-    )
+    [string]$storageaccountkey = ""
+)
 
 Connect-MgGraph -Identity
 
@@ -33,45 +32,38 @@ cd maester-tests
 # Remove-Item .\tests\Maester\Intune\Test-MtIntunePlatform.Tests.ps1
 
 # Copy our custom tests from shared modules path
-try {
-    Import-Module Custom -ErrorAction Stop   # C:\usr\src\PSModules\Custom
-        
-    $ModulePath = (Get-Module Custom).ModuleBase
-    $DestFolder = "$env:TEMP\maester-tests\tests\Custom"
+Import-Module Custom -ErrorAction Stop   
     
-    # remove previous contents of the folder if it exists
-    if (Test-Path $DestFolder -PathType Container) {
-        Get-ChildItem -Path $DestFolder -Recurse | Remove-Item -Force -Recurse
-    } else {
-        New-Item -ItemType Directory -Force -Path $DestFolder
-    }
+$ModulePath = (Get-Module Custom).ModuleBase
+$DestFolder = "$env:TEMP\maester-tests\tests\Custom"
 
-    # copy custom measter tests to the test test custom folder
-    Get-ChildItem -Path $ModulePath | ForEach-Object {
-        Copy-Item $_.FullName -Destination $DestFolder -Force
-    }
-} catch {
-    Write-Output "Error details: $($_.Exception.Message)"
-    exit 1
+# remove previous contents of the folder if it exists
+if (Test-Path $DestFolder -PathType Container) {
+    Get-ChildItem -Path $DestFolder -Recurse | Remove-Item -Force -Recurse
+} else {
+    New-Item -ItemType Directory -Force -Path $DestFolder
 }
+
+# copy custom measter tests to the test test custom folder
+Get-ChildItem -Path $ModulePath | ForEach-Object {
+    Copy-Item $_.FullName -Destination $DestFolder -Force
+}
+
+
+$context = New-AzStorageContext -StorageAccountName $storageaccountname -StorageAccountKey $storageaccountkey
+Write-Output "Created storage context with managed identity: $($context.Context.StorageAccountName)"
 
 # create Maester detailed result file name with date and time
 $OutputHtmlFile = "MaesterDetailedReport_$((Get-Date).ToString('yyyyMMdd-HHmm')).html"
+write-Output "Created filename HTML file: $OutputHtmlFile"
 
-# create shareable SAS URL for the output file
-$sasUrl = "https://$storageaccountname.blob.core.windows.net/$containername/$OutputHtmlFile$sastokenread"
-Write-Output "Shareable SAS URL: $sasUrl"
+$readSasToken = New-AzStorageBlobSASToken -Container $containername -Blob $OutputHtmlFile -Permission r -Context $context -ExpiryTime (Get-Date).AddYears(5)
+write-Output "Created read SAS token: $readSasToken"
 
-Invoke-Maester -MailUserId $MailSenderUUID -MailRecipient $MailRecipients -OutputHtmlFile $OutputHtmlFile -MailTestResultsUri $sasUrl -NonInteractive
-$context = New-AzStorageContext -StorageAccountName $storageaccountname -SasToken $sastokenwrite
-Write-Output "Created storage context with managed identity: $($context.Context.StorageAccountName)"
-try {
-    $uploadResult = Set-AzStorageBlobContent -File "$OutputHtmlFile" -Container $containername -Blob $OutputHtmlFile -Context $context -Force -ErrorAction Stop
-    Write-Output "Blob upload succeeded: $($uploadResult.Name)"
-} catch {
-    Write-Error "Blob upload failed: $($_.Exception.Message)"
-    if ($_.Exception.Response) {
-        Write-Error "Response: $($_.Exception.Response)"
-    }
-    exit 1
-}
+$readSasUrl = "https://" + $storageaccountname + ".blob.core.windows.net/" + $containername + "/" + $OutputHtmlFile + "?" + $readSasToken
+Write-Output "Created unique read SAS URL: $readSasUrl"
+
+Invoke-Maester -MailUserId $MailSenderUUID -MailRecipient $MailRecipients -OutputHtmlFile $OutputHtmlFile -MailTestResultsUri $readSasUrl -NonInteractive
+
+$uploadResult = Set-AzStorageBlobContent -File "$OutputHtmlFile" -Container $containername -Blob $OutputHtmlFile -Context $context -Force -ErrorAction Stop
+Write-Output "Blob upload succeeded: $($uploadResult.Name)"
