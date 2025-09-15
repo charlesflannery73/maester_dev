@@ -29,5 +29,6 @@ resource "azurerm_automation_schedule" "maester_runbook_schedule" {
   frequency               = "Day"
   timezone                = "Australia/Sydney"
   description             = "Maester Daily Schedule"
+  start_time              = timeadd(timestamp(), "10m")
   # week_days               = ["Friday"]
 }

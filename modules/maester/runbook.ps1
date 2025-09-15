@@ -3,7 +3,7 @@ param(
     [string]$containername = "",
     [string]$sastokenwrite = "",
     [string]$sastokenread =  ""
-)
+    )
 
 Connect-MgGraph -Identity
 
@@ -64,4 +64,14 @@ Write-Output "Shareable SAS URL: $sasUrl"
 
 Invoke-Maester -MailUserId $MailSenderUUID -MailRecipient $MailRecipients -OutputHtmlFile $OutputHtmlFile -MailTestResultsUri $sasUrl -NonInteractive
 $context = New-AzStorageContext -StorageAccountName $storageaccountname -SasToken $sastokenwrite
-Set-AzStorageBlobContent -File "$OutputHtmlFile" -Container $containername -Blob $OutputHtmlFile -Context $context -Force
+Write-Output "Created storage context with managed identity: $($context.Context.StorageAccountName)"
+try {
+    $uploadResult = Set-AzStorageBlobContent -File "$OutputHtmlFile" -Container $containername -Blob $OutputHtmlFile -Context $context -Force -ErrorAction Stop
+    Write-Output "Blob upload succeeded: $($uploadResult.Name)"
+} catch {
+    Write-Error "Blob upload failed: $($_.Exception.Message)"
+    if ($_.Exception.Response) {
+        Write-Error "Response: $($_.Exception.Response)"
+    }
+    exit 1
+}

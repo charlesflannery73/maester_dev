@@ -48,3 +48,11 @@ terraform apply
 - Edit the variable $MailSenderEmail
 - Save, Publish
 - Optionally - Click "Start" to run it manually
+
+### 5. Create a hybrid worker group (so the runbook can access the storage securely)
+- UPDATE - there is issues where both hybrid worker and runbooks can't access private dns to then access the storage privately
+- 1. Limitation - runbook Az moudle versions don't (yet) support the latest version on Az modules
+- 2. Limitation - hybrid worker VM extension also have old versions that don't support private dns
+- 
+- For now the runbook need to access it publicy (storage needs public access enabled)
+- Storage is still protected by identity, just not by networking rules.

@@ -92,7 +92,7 @@ resource "azurerm_storage_account" "maester" {
 }
 
 resource "azurerm_storage_container" "output" {
-  name                  = "runbook-output"
+  name                  = "${var.prefix}-maester-container-${var.environment}"
   storage_account_name  = azurerm_storage_account.maester.name
   container_access_type = "private"
 }
@@ -200,4 +200,3 @@ resource "azuread_app_role_assignment" "maester_graph" {
   app_role_id                   = each.value
   resource_object_id            = data.azuread_service_principal.msgraph.object_id
 }
-
